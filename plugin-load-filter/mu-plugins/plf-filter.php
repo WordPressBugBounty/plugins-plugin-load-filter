@@ -2,7 +2,7 @@
 /*
   Plugin Name: plugin load filter [plf-filter]
   Description: Dynamically activated only plugins that you have selected in each page. [Note] plf-filter has been automatically installed / deleted by Activate / Deactivate of "load filter plugin".
-  Version: 4.1.1
+  Version: 4.2.0
   Plugin URI: http://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: http://celtislab.net/
@@ -42,16 +42,19 @@ if ( !function_exists('wp_get_current_user') ) :
  * @return WP_User Current user WP_User object
  */
 function wp_get_current_user() {
-	if ( ! function_exists( 'wp_set_current_user' ) ){
+    static $_current_user = null;
+	if ( did_action( 'setup_theme' ) === 0 ){
     	if ( defined( 'LOGGED_IN_COOKIE' ) && !empty( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) {
             $cookie_elements = explode( '|', $_COOKIE[ LOGGED_IN_COOKIE ] );
             if ( count( $cookie_elements ) === 4 ) {
                 list( $username, $expiration, $token, $hmac ) = $cookie_elements;
         		if ( $expiration > time() ) {
+                    if (!empty($_current_user) && $_current_user->user_login === $username){
+                        return $_current_user;
+                    }
                     $user = get_user_by( 'login', $username );
-            		if ( $user ) {                    
+            		if ( $user ) {                        
                         $pass_frag = substr( $user->user_pass, 8, 4 );
-
                         $key = plf_logged_in_hash( $username . '|' . $pass_frag . '|' . $expiration . '|' . $token );
 
                         // If ext/hash is not present, compat.php's hash_hmac() does not support sha256.
@@ -61,6 +64,8 @@ function wp_get_current_user() {
                         if ( hash_equals( $hash, $hmac ) ) {
                             $manager = WP_Session_Tokens::get_instance( $user->ID );
                             if ( $manager->verify( $token ) ) {
+                                //この時点のユーザーは仮ユーザーデータであり $current_user は未設定とする
+                                $_current_user = $user;
                                 return $user;
                             }                            
                         }                        
@@ -74,6 +79,8 @@ function wp_get_current_user() {
         return $user;
         
     } else {
+        //$GLOBALS['wp_roles'] セット後の setup_theme アクション後に $current_user を設定する
+        //※使用プラグインの組み合わせにもよるが、想定外に早い $current_user 設定は bbpress 等の一部プラグインにおいて capability 動的追加が反映されないことがあるため 
         return _wp_get_current_user();
     }
 }
@@ -189,6 +196,8 @@ class Plf_filter {
             add_filter('pre_option_active_plugins', array('Plf_filter', 'active_plugins'));
             add_filter('pre_option_jetpack_active_modules', array('Plf_filter', 'active_jetmodules'));
             add_filter('pre_option_celtispack_active_modules', array('Plf_filter', 'active_celtismodules'));
+
+            add_filter('plf_singler_custom_url_to_postid', array('Plf_filter', 'custom_url_to_postid'), 10, 3);
             
             add_action('update_option_active_plugins', array($this, 'update_active_plugins'), 99999, 3);
             add_action('update_option_jetpack_active_modules', array($this, 'update_active_jetmodules'), 99999, 3);
@@ -505,6 +514,54 @@ class Plf_filter {
         return $locale;
     }
 
+    //This filter hook for when the post ID cannot be detected from the singler URL due to using a permalink change plugin etc.
+    //Permalink Manger plugin (issue from Shawn X.)
+    //Custom Permalinks plugin
+    static function custom_url_to_postid($post_id, $url_path, $pre_active_plugins) {
+        if(empty($post_id) && !empty($pre_active_plugins)){
+            foreach ($pre_active_plugins as $key) {
+                if ( strpos($key, 'permalink-manager' ) !== false){
+                    $permalink_manager_uris = (array)get_option('permalink-manager-uris', array());
+                    if(empty($permalink_manager_uris)){
+                        break;
+                    } else {
+                        foreach ($permalink_manager_uris as $pid => $slug) {
+                            if(preg_match("#/{$slug}(/?$)#ui", $url_path)){
+                                $post_id = $pid;
+                                break 2;
+                            }                
+                        }                                                            
+                    }
+                } else if ( strpos($key, 'custom-permalinks' ) !== false){
+                    $url      = wp_parse_url( get_bloginfo( 'url' ) );
+                    $url      = isset( $url['path'] ) ? $url['path'] : '';
+                    $meta_val = ltrim( substr( $url_path, strlen( $url ) ), '/' );                  
+
+                    global $wpdb;
+                    $posts = $wpdb->get_results(
+                        $wpdb->prepare(
+                            'SELECT p.ID, pm.meta_value, p.post_type, p.post_status ' .
+                            " FROM $wpdb->posts AS p INNER JOIN $wpdb->postmeta AS pm ON (pm.post_id = p.ID) " .
+                            " WHERE pm.meta_key = 'custom_permalink' " .
+                            ' AND (pm.meta_value = %s OR pm.meta_value = %s) ' .
+                            " AND p.post_status IN ('publish', 'private', 'inherit') " .
+                            " AND p.post_type != 'nav_menu_item' " . // nav_menu_item を除外、他の post_type を許可
+                            " ORDER BY FIELD(p.post_status,'publish','private','inherit')," .
+                            " p.post_type LIMIT 1",
+                            $meta_val,
+                            $meta_val . '/'
+                        )
+                    );
+                    if(!empty($posts[0]->ID)) {
+                        $post_id = (int)$posts[0]->ID;
+                    }
+                    break;               
+                }                
+            }                              
+        }
+        return $post_id;
+    }
+    
     //プラグインロード前は bbPress等 カスタムポストタイプのデバッグモードでのエラー表示抑制
     static function exclude_trigger_error( $trigger, $function, $message, $version) {
         if (did_action( 'plugins_loaded' ) === 0) {
@@ -786,6 +843,19 @@ class Plf_filter {
                             }                
                         }                        
                     }
+                    $post_id = apply_filters('plf_singler_custom_url_to_postid', $post_id, $parse_url['path'], self::$base_plugins);
+                    if(!empty($post_id)){
+                        if(empty($wp_query->post)){
+                            $r = new WP_Query( array( 'p' => $post_id, 'post_type' => 'any' ) );                            
+                            if ($r->have_posts()) {
+                                if(!empty($r->post)){
+                                    $wp_query->posts = $r->posts;
+                                    $wp_query->post = $r->post;
+                                }
+                            }                            
+                        }                        
+                        self::$url2id[$req_url] = (int)$post_id;
+                    }                    
                 }
                 if(!empty($post_id)){
                     $post = get_post( $post_id );
@@ -1015,15 +1085,19 @@ class Plf_filter {
         }        
         
         //Equal treatment for when the wp_is_mobile is not yet available（wp-include/vars.php wp_is_mobile)
-        if ( empty($_SERVER['HTTP_USER_AGENT']) ) {
+        if ( isset( $_SERVER['HTTP_SEC_CH_UA_MOBILE'] ) ) {
+            // This is the `Sec-CH-UA-Mobile` user agent client hint HTTP request header.
+            // See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Sec-CH-UA-Mobile>.
+            $is_mobile = ( '?1' === $_SERVER['HTTP_SEC_CH_UA_MOBILE'] );
+        } elseif ( empty( $_SERVER['HTTP_USER_AGENT'] ) ) {
             $is_mobile = false;
-        } elseif ( strpos($_SERVER['HTTP_USER_AGENT'], 'Mobile') !== false // many mobile devices (all iPhone, iPad, etc.)
-            || strpos($_SERVER['HTTP_USER_AGENT'], 'Android') !== false
-            || strpos($_SERVER['HTTP_USER_AGENT'], 'Silk/') !== false
-            || strpos($_SERVER['HTTP_USER_AGENT'], 'Kindle') !== false
-            || strpos($_SERVER['HTTP_USER_AGENT'], 'BlackBerry') !== false
-            || strpos($_SERVER['HTTP_USER_AGENT'], 'Opera Mini') !== false
-            || strpos($_SERVER['HTTP_USER_AGENT'], 'Opera Mobi') !== false ) {
+        } elseif ( str_contains( $_SERVER['HTTP_USER_AGENT'], 'Mobile' ) // Many mobile devices (all iPhone, iPad, etc.)
+            || str_contains( $_SERVER['HTTP_USER_AGENT'], 'Android' )
+            || str_contains( $_SERVER['HTTP_USER_AGENT'], 'Silk/' )
+            || str_contains( $_SERVER['HTTP_USER_AGENT'], 'Kindle' )
+            || str_contains( $_SERVER['HTTP_USER_AGENT'], 'BlackBerry' )
+            || str_contains( $_SERVER['HTTP_USER_AGENT'], 'Opera Mini' )
+            || str_contains( $_SERVER['HTTP_USER_AGENT'], 'Opera Mobi' ) ) {
                 $is_mobile = true;
         } else {
             $is_mobile = false;
@@ -1181,18 +1255,33 @@ class Plf_filter {
                     }                        
                 }
                 if(empty($wp_query->post)){
+                    //パーマリンクをカスタムするプラグイン等により URL から　post ID が所得できない場合用のフィルターフック
+                    $post_id = apply_filters('plf_singler_custom_url_to_postid', 0, $parse_url['path'], self::$base_plugins);
+                    if(!empty($post_id)){
+                        $r = new WP_Query( array( 'p' => $post_id, 'post_type' => 'any' ) );                            
+                        if ($r->have_posts()) {
+                            if(!empty($r->post)){
+                                $wp_query->posts = $r->posts;
+                                $wp_query->post = $r->post;
+                            }
+                        }                            
+                    }
+                }                
+                if(empty($wp_query->post)){                    
                     $unknown = true;
                 }                
             }
         }
         
         $single_opt = array();
-        if(is_singular() && is_object($wp_query->post)){
-            self::$pre_post_id = $wp_query->post->ID;   //for post_locale()
-            $myfilter = get_post_meta( $wp_query->post->ID, '_plugin_load_filter', true );
-            $default = array( 'filter' => 'default', 'desktop' => '', 'mobile' => '');
-            $single_opt = (!empty($myfilter))? $myfilter : $default;
-            $single_opt = wp_parse_args( $single_opt, $default);
+        if(is_singular()){
+            if(is_object($wp_query->post)){
+                self::$pre_post_id = $wp_query->post->ID;   //for post_locale()
+                $myfilter = get_post_meta( $wp_query->post->ID, '_plugin_load_filter', true );
+                $default = array( 'filter' => 'default', 'desktop' => '', 'mobile' => '');
+                $single_opt = (!empty($myfilter))? $myfilter : $default;
+                $single_opt = wp_parse_args( $single_opt, $default);                
+            }            
         }
         if(!empty(self::$s_url_filter)){
             //Addon frontend URL filtering

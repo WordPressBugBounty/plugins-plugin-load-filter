@@ -2,12 +2,12 @@
 /*
   Plugin Name: plugin load filter
   Description: Dynamically activate the selected plugins for each page. Response will be faster by filtering plugins.
-  Version: 4.1.1
+  Version: 4.2.0
   Plugin URI: https://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: https://celtislab.net/
   Requires at least: 5.3
-  Tested up to: 6.5
+  Tested up to: 6.7
   Requires PHP: 7.2
   License: GPLv2
   Text Domain: plf
@@ -182,8 +182,8 @@ class Plf_setting {
 
     public function __construct() {
 
-        load_plugin_textdomain('plf', false, basename( dirname( __FILE__ ) ).'/languages' );
-
+        add_action('init', function(){ load_plugin_textdomain('plf', false, basename( dirname( __FILE__ ) ).'/languages' ); }, 1);
+        
         self::$filter = get_option('plf_option', array());
         if(empty(self::$filter['optver']) || self::$filter['optver'] < '2'){
             self::$filter['optver'] = '2';

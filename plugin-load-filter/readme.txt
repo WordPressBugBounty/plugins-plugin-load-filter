@@ -2,9 +2,9 @@
 Contributors: enomoto celtislab
 Tags: dynamic deactivate plugins, disable plugins, performance, Locale switching
 Requires at least: 5.3
-Tested up to: 6.5
+Tested up to: 6.7
 Requires PHP: 7.2
-Stable tag: 4.1.1
+Stable tag: 4.2.0
 Donate link: https://celtislab.net/en/wp-plugin-load-filter-addon/
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -80,6 +80,15 @@ URL filter is changed incompatible with the old version, so if you used it you n
 3. Setting of each post
 
 == Changelog ==
+
+= 4.2.0 =
+* 2024-11-12
+* tested WP6.7
+* Adjusted timing $current_user setting when calling wp_get_current_user is after setup_theme action.
+* Added filter hook plf_singler_custom_url_to_postid for when post ID cannot be detected from the singler URL due to using a permalink change plugin etc.
+* plf_singler_custom_url_to_postid filter hook has been used to get Post ID from custom URL of Permalink Manger or Custom Permalinks plugins.
+* Fixed the call to load_plugin_textdomain to init hook.
+
 
 = 4.1.1 =
 * 2024-4-8
