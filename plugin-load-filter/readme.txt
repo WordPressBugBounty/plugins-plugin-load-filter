@@ -1,10 +1,10 @@
 === Plugin Load Filter ===
 Contributors: enomoto celtislab
 Tags: dynamic deactivate plugins, disable plugins, performance, Locale switching
-Requires at least: 5.3
-Tested up to: 6.7
-Requires PHP: 7.2
-Stable tag: 4.2.0
+Requires at least: 6.0
+Tested up to: 6.8
+Requires PHP: 8.1
+Stable tag: 4.3.0
 Donate link: https://celtislab.net/en/wp-plugin-load-filter-addon/
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -80,6 +80,14 @@ URL filter is changed incompatible with the old version, so if you used it you n
 3. Setting of each post
 
 == Changelog ==
+
+= 4.3.0 =
+* 2025-4-21
+* WP6.8 support
+* Added IFRAME_REQUEST check to prevent JS errors from occurring when retrieving user information in iframe of Customizer.
+* Changed plf_option, plf_queryvars options autoload 'no' 
+* Changed Requires WP6.0, php8.1
+
 
 = 4.2.0 =
 * 2024-11-12

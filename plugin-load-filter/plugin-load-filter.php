@@ -2,13 +2,13 @@
 /*
   Plugin Name: plugin load filter
   Description: Dynamically activate the selected plugins for each page. Response will be faster by filtering plugins.
-  Version: 4.2.0
+  Version: 4.3.0
   Plugin URI: https://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: https://celtislab.net/
-  Requires at least: 5.3
-  Tested up to: 6.7
-  Requires PHP: 7.2
+  Requires at least: 6.0
+  Tested up to: 6.8
+  Requires PHP: 8.1
   License: GPLv2
   Text Domain: plf
   Domain Path: /languages
@@ -396,7 +396,7 @@ class Plf_setting {
                     //Ajax acceleration plugin filter (for plugin developers)
                     self::$filter['ajax_accelfilter'] = (isset($_POST['plf_option']['ajax_accelfilter']))? 1 : 0;
                     
-                    update_option('plf_option', self::$filter );
+                    update_option('plf_option', self::$filter, 'no' );
                 }
                 header('Location: ' . admin_url('plugins.php?page=plugin_load_filter_admin_manage_page'));
                 exit;
@@ -424,7 +424,7 @@ class Plf_setting {
                 self::$filter['admin_bar'] = 0;
                 self::$filter['language'] = 0;
                 self::$filter['ajax_accelfilter'] = 0;
-                update_option('plf_option', self::$filter );
+                update_option('plf_option', self::$filter, 'no' );
                 header('Location: ' . admin_url('plugins.php?page=plugin_load_filter_admin_manage_page'));
                 exit;
                 
@@ -442,7 +442,7 @@ class Plf_setting {
                         $option["plugins"] = implode(",", $plugins);
                         self::$filter['group'][$item] = $option;
                     }
-                    update_option('plf_option', self::$filter );
+                    update_option('plf_option', self::$filter, 'no' );
                 }
                 header('Location: ' . admin_url('plugins.php?page=plugin_load_filter_admin_manage_page&action=tab_1'));
                 exit;
@@ -450,7 +450,7 @@ class Plf_setting {
             } elseif( isset($_POST['clear_activate_page_filter']) ) {
                 check_admin_referer('plugin_load_filter');
                 self::$filter['group'] = array();
-                update_option('plf_option', self::$filter );
+                update_option('plf_option', self::$filter, 'no' );
                 header('Location: ' . admin_url('plugins.php?page=plugin_load_filter_admin_manage_page&action=tab_1'));
                 exit;
             }

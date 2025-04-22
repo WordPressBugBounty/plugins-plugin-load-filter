@@ -2,7 +2,7 @@
 /*
   Plugin Name: plugin load filter [plf-filter]
   Description: Dynamically activated only plugins that you have selected in each page. [Note] plf-filter has been automatically installed / deleted by Activate / Deactivate of "load filter plugin".
-  Version: 4.2.0
+  Version: 4.3.0
   Plugin URI: http://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: http://celtislab.net/
@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * @return string Hash of $data.
  */
  //wp_salt( $scheme ) を簡略化して logged_in cookie 限定
-function plf_logged_in_hash( $data ) {
+function plf_logged_in_hash( $data, $algo = 'md5' ) {
     $values = array(
         'key'  => '',
         'salt' => '',
@@ -33,7 +33,19 @@ function plf_logged_in_hash( $data ) {
         }
     }
     $salt = $values['key'] . $values['salt'];
-    return hash_hmac( 'md5', $data, $salt );
+    
+    // Ensure the algorithm is supported by the hash_hmac function.
+    if ( ! in_array( $algo, hash_hmac_algos(), true ) ) {
+        throw new InvalidArgumentException(
+            sprintf(
+                /* translators: 1: Name of a cryptographic hash algorithm. 2: List of supported algorithms. */
+                __( 'Unsupported hashing algorithm: %1$s. Supported algorithms are: %2$s' ),
+                $algo,
+                implode( ', ', hash_hmac_algos() )
+            )
+        );
+    }    
+    return hash_hmac( $algo, $data, $salt );
 }
 
 if ( !function_exists('wp_get_current_user') ) :
@@ -43,7 +55,8 @@ if ( !function_exists('wp_get_current_user') ) :
  */
 function wp_get_current_user() {
     static $_current_user = null;
-	if ( did_action( 'setup_theme' ) === 0 ){
+    //ver4.2.1 Depending on the environment, a JS error may occur in the iframe in the Customizer, so an IFRAME_REQUEST check has been added.
+    if ( ! function_exists( 'wp_set_current_user' ) || (! defined( 'IFRAME_REQUEST') && did_action( 'setup_theme' ) === 0) ){    
     	if ( defined( 'LOGGED_IN_COOKIE' ) && !empty( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) {
             $cookie_elements = explode( '|', $_COOKIE[ LOGGED_IN_COOKIE ] );
             if ( count( $cookie_elements ) === 4 ) {
@@ -53,13 +66,18 @@ function wp_get_current_user() {
                         return $_current_user;
                     }
                     $user = get_user_by( 'login', $username );
-            		if ( $user ) {                        
-                        $pass_frag = substr( $user->user_pass, 8, 4 );
+            		if ( $user ) {
+                        //WP6.8 bcrypt サポートにより $pass_frag が変更された
+                        //$pass_frag = substr( $user->user_pass, 8, 4 );
+                        if ( str_starts_with( $user->user_pass, '$P$' ) || str_starts_with( $user->user_pass, '$2y$' ) ) {
+                            // Retain previous behaviour of phpass or vanilla bcrypt hashed passwords.
+                            $pass_frag = substr( $user->user_pass, 8, 4 );
+                        } else {
+                            // Otherwise, use a substring from the end of the hash to avoid dealing with potentially long hash prefixes.
+                            $pass_frag = substr( $user->user_pass, -4 );
+                        }
                         $key = plf_logged_in_hash( $username . '|' . $pass_frag . '|' . $expiration . '|' . $token );
-
-                        // If ext/hash is not present, compat.php's hash_hmac() does not support sha256.
-                        $algo = function_exists( 'hash' ) ? 'sha256' : 'sha1';
-                        $hash = hash_hmac( $algo, $username . '|' . $expiration . '|' . $token, $key );
+                        $hash = hash_hmac( 'sha256', $username . '|' . $expiration . '|' . $token, $key );
 
                         if ( hash_equals( $hash, $hmac ) ) {
                             $manager = WP_Session_Tokens::get_instance( $user->ID );
@@ -332,7 +350,7 @@ class Plf_filter {
         //plugin bulk action repeated call
         if(empty($data['stat_change'])){
             $data['stat_change'] = true;
-            update_option('plf_queryvars', $data);            
+            update_option('plf_queryvars', $data, 'no');            
         }         
     }
         
@@ -446,7 +464,7 @@ class Plf_filter {
             $data['post_type_query_vars'] = $post_type_query_vars;
             $data['queryable_post_types'] = $queryable_post_types;
             $data['stat_change']          = false;
-            update_option('plf_queryvars', $data);
+            update_option('plf_queryvars', $data, 'no');
         }
     }
 
