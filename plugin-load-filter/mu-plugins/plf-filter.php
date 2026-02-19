@@ -2,7 +2,7 @@
 /*
   Plugin Name: plugin load filter [plf-filter]
   Description: Dynamically activated only plugins that you have selected in each page. [Note] plf-filter has been automatically installed / deleted by Activate / Deactivate of "load filter plugin".
-  Version: 4.3.0
+  Version: 4.3.1
   Plugin URI: http://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: http://celtislab.net/
@@ -778,8 +778,10 @@ class Plf_filter {
     
     // url path, query parameter match check
     static function is_url_match( $req_url, $parse_url, $filter ) {
-        if(empty($req_url) || empty($parse_url['path']))
+        if(empty($req_url))
             return false;
+        if(empty($parse_url['path']))   //url host name only request -> home path(/) set
+            $parse_url['path'] = '/';
         $_url['url_path'] = $parse_url['path'];
         $_url['url_q_and'] = $_url['url_q_not'] = (!empty($parse_url['query']))? $parse_url['query'] : '';
         
