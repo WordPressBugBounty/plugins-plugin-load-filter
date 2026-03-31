@@ -2,12 +2,12 @@
 /*
   Plugin Name: plugin load filter
   Description: Dynamically activate the selected plugins for each page. Response will be faster by filtering plugins.
-  Version: 4.3.1
+  Version: 4.4.0
   Plugin URI: https://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: https://celtislab.net/
-  Requires at least: 6.0
-  Tested up to: 6.9
+  Requires at least: 6.3
+  Tested up to: 7.0
   Requires PHP: 8.1
   License: GPLv2
   Text Domain: plf
@@ -158,16 +158,15 @@ class Plf_setting {
     .grid-row { display: flex; flex-flow: row wrap;}        
     .filter-description { padding: 0 10px; width:62%;}
     .side-info { width: 30%;  padding-left: 24px;}
-    .exclude-pformat { padding: 5px 0 20px}
-    .exclude-pformat label { white-space:nowrap;}
-    .exclude-pformat span { margin-right: 12px; }
+    .ckbox-list { padding: 4px 0 12px}
+    .ckbox-list label { white-space:nowrap;}
+    .ckbox-list span { margin-right: 12px; }
     .dashicons:before { font-size: 24px; }
     .radio-green label, .radio-red label { color: #ddd; margin-left: -32px; }
     .ckbox-type label { color: #ddd;}
     .radio-green input[type="radio"]:checked + span { color: #8bc34a; }
     .radio-red input[type="radio"]:checked + span { color: tomato; }    
     .ckbox-type input[type="checkbox"]:checked + span { color: #4caf50; }
-    /* .dashicons-dismiss:before { background-color: yellowgreen; font-size: 20px; border-radius: 12px; } */
     .deny-type label { color: #4caf50;}
     .deny-type input.altcheckbox[type="checkbox"]:checked + span { color: #ddd; }
     .dashicons-yes:before { font-size: 20px; border: 1px solid #eee; } 
@@ -182,8 +181,6 @@ class Plf_setting {
 
     public function __construct() {
 
-        add_action('init', function(){ load_plugin_textdomain('plf', false, basename( dirname( __FILE__ ) ).'/languages' ); }, 1);
-        
         self::$filter = get_option('plf_option', array());
         if(empty(self::$filter['optver']) || self::$filter['optver'] < '2'){
             self::$filter['optver'] = '2';
@@ -312,7 +309,7 @@ class Plf_setting {
     static function plf_notice() {
         $notice = get_transient('plf_notice');
         if(!empty($notice)){
-            echo '<div class="notice notice-warning"><p>Plugin Load Filter : ' . $notice . '</p></div>';
+            echo '<div class="notice notice-warning"><p>Plugin Load Filter : ' . esc_html($notice) . '</p></div>';
             delete_transient('plf_notice');
         }        
     }
@@ -326,15 +323,15 @@ class Plf_setting {
                     //url filter
                     $groupkeys = (method_exists('Plf_filter', 'get_active_group'))? Plf_filter::get_active_group() : array();
                     if(!empty($groupkeys) && isset($_POST['plfurlkey'])){
-                        $urlkeys = array_keys($_POST['plfurlkey']);
+                        $plfurlkey = $_POST['plfurlkey']; //array
                         foreach( $groupkeys as $item){
-                            if(empty( $_POST['plfurlkey'][$item])){
+                            if(empty( $plfurlkey[$item])){
                                 self::$filter['plfurlkey'][$item]['plugins'] = '';
                             } else {
                                 $plugins = array();
-                                foreach ( $_POST['plfurlkey'][$item] as $p_key => $val ) {
+                                foreach ( $plfurlkey[$item] as $p_key => $val ) {
                                     if($val == '1')
-                                        $plugins[] = $p_key;
+                                        $plugins[] = sanitize_text_field($p_key);
                                 }
                                 $option["plugins"] = implode(",", $plugins);
                                 self::$filter['plfurlkey'][$item] = $option;
@@ -344,15 +341,19 @@ class Plf_setting {
                     //page type filter
                     foreach( array('_admin', '_pagefilter') as $item){
                         $plugins = array();
-                        foreach ( $_POST['plfregist'] as $p_key => $val ) {
-                            if($val == $item)
-                                $plugins[$p_key] = $val;
+                        $plfregist = $_POST['plfregist']; //array
+                        foreach ( $plfregist as $p_key => $val ) {
+                            if($val == $item){
+                                $p_key = sanitize_text_field($p_key);
+                                $plugins[$p_key] = sanitize_text_field($val);
+                            }
                         }
                         if($item == '_pagefilter'){
                             //If all modules is specified filter, in some cases you want to deactivate plugin itself.
                             $jbase = $cbase = '';
                             $jall = $call = true;
-                            foreach ( $_POST['plfregist'] as $p_key => $val ) {
+                            foreach ( $plfregist as $p_key => $val ) {
+                                $p_key = sanitize_text_field($p_key);
                                 if(strpos($p_key, 'jetpack/') !== false)
                                     $jbase = $p_key;
                                 else if(strpos($p_key, 'celtispack/') !== false)
@@ -378,13 +379,31 @@ class Plf_setting {
                     //exclude option
                     if(isset($_POST['plf_option']['exclude'])){
                         $exclude = array();
-                        foreach ( $_POST['plf_option']['exclude'] as $ft => $v ) {
-                            if(!empty($v))
+                        $optexcl = $_POST['plf_option']['exclude']; //array
+                        foreach ( $optexcl as $ft => $v ) {
+                            if(!empty($v)){
+                                $ft = sanitize_text_field($ft);
                                 $exclude[$ft] = true;
+                            }
                         }
                         self::$filter['exclude'] = $exclude;
                     } else {
                         self::$filter['exclude'] = array();
+                    }
+
+                    //hide singlr post filter for custom post type
+                    if(isset($_POST['plf_option']['hidecpt'])){
+                        $hidecpt = array();
+                        $optcpt = $_POST['plf_option']['hidecpt']; //array
+                        foreach ( $optcpt as $ft => $v ) {
+                            if(!empty($v)){
+                                $ft = sanitize_text_field($ft);
+                                $hidecpt[$ft] = true;
+                            }
+                        }
+                        self::$filter['hidecpt'] = $hidecpt;
+                    } else {
+                        self::$filter['hidecpt'] = array();
                     }
                     
                     //admin bar (filtered stat)
@@ -412,6 +431,7 @@ class Plf_setting {
                     self::$filter[$item] = array();
                 }
                 self::$filter['exclude'] = array();
+                self::$filter['hidecpt'] = array();
                 
                 //old data unset 
                 if(isset(self::$filter['urlkey'])){
@@ -432,12 +452,13 @@ class Plf_setting {
                 if(isset($_POST['plfactive'])){
                     check_admin_referer('plugin_load_filter');
                     self::$filter['group'] = array();
-                    $group = array_keys($_POST['plfactive']);
+                    $plfactive = $_POST['plfactive']; //array
+                    $group = array_keys($plfactive);
                     foreach( $group as $item){
                         $plugins = array();
-                        foreach ( $_POST['plfactive'][$item] as $p_key => $val ) {
+                        foreach ( $plfactive[$item] as $p_key => $val ) {
                             if($val == '1')
-                                $plugins[] = $p_key;
+                                $plugins[] = sanitize_text_field($p_key);
                         }                            
                         $option["plugins"] = implode(",", $plugins);
                         self::$filter['group'][$item] = $option;
@@ -491,23 +512,35 @@ class Plf_setting {
         return($name);
     } 
 
-    //Checkbox
+    // wp_kses() サニタイズで form,input,select タグを許可
+    public static function get_allowed_tags() {    
+        global $allowedposttags;
+        $allowed_tags = $allowedposttags;
+        $allowed_tags['form']   = array( 'action' => true, 'accept' => true, 'accept-charset' => true, 'enctype' => true, 'method' => true, 'name' => true,	'target' => true );                
+        $allowed_tags['label']  = array( 'for'  => true );                
+        $allowed_tags['input']  = array( 'type' => true, 'name' => true, 'value' => true, 'checked' => true);
+        $allowed_tags['select'] = array( 'name' => true, 'multiple' => true );        
+        $allowed_tags['option'] = array( 'value' => true, 'selected' => true );        
+        $allowed_tags['button'] = array( 'href' => true, 'onclick' => true);
+        $allowed_tags['a']['onclick'] = true;
+        $allowed_tags = array_map( '_wp_add_global_attributes', $allowed_tags );
+        return $allowed_tags;
+    }    
+    //Checkbox for addon
 	static function checkbox($name, $value, $label = '') {
         return "<label><input type='checkbox' name='$name' value='1' " . checked( $value, 1, false ).  "/> $label</label>";
 	}
 	static function altcheckbox($name, $value, $label = '') {
-        //return "<input type='hidden' name='$name' value='0'><input type='checkbox' name='$name' value='1' " . checked( $value, 1, false ).  "/><label> $label</label>";
         return "<label><input type='checkbox' name='$name' class='altcheckbox' value='1' " . checked( $value, 1, false ).  "/> $label</label>";
 	}
 
-    //dropdown list
-    static function dropdown($name, $items, $selected, $args = null) {
+    //dropdown list for addon
+    static function dropdown($name, $items, $selected, $args = null, $display = false) {
         $defaults = array(
             'id' => $name,
             'none' => false,
             'class' => null,
             'multiple' => false,
-            'select_attr' => ""
         );
 
         if (!is_array($items))
@@ -534,43 +567,47 @@ class Plf_setting {
         if (!$id)
             $id = $name;
 
-        $name = ($name) ? "name='$name'" : "";
-        $id = ($id) ? "id='$id'" : "";
-        $class = ($class) ? "class='$class'" : "";
-        $multiple = ($multiple) ? "multiple='multiple'" : "";
+        $name  = ($name) ? ' name="' . esc_html($name) . '"' : '';
+        $id    = ($id)   ? ' id="'   . esc_html($id)   . '"' : '';
+        $class = ($class)? ' class="'. esc_html($class). '"' : '';
+        $multiple = ($multiple) ? ' multiple="multiple"' : '';
 
-        $html = "<select $name $id $class $multiple $select_attr>";
-
+        $html  = '<select' . $name . $id . $class . $multiple  .'>';
         foreach ((array) $items as $key => $label) {
-            $key = esc_attr($key);
-            $label = esc_attr($label);
-
-            $html .= "<option value='$key' " . selected($selected, $key, false) . ">$label</option>";
+            $html .= '<option value="' . esc_html($key) . '" ' . selected($selected, $key, false) . '>' . esc_html($label) . '</option>';
         }
-        $html .= "</select>";
-        return $html;
+        $html .= '</select>';
+        if($display){
+            echo wp_kses( $html, array(
+                'select' => array( 'name' => true, 'id' => true, 'class' => true, 'multiple' => true ), 
+                'option' => array( 'value' => true, 'selected' => true )
+                ));
+        } else {
+            return $html;
+        }
     }
-
+    
     //安全な文字列から指定タグのみデコード（既存の翻訳ファイルへ影響せずにエスケープするために使用）
     //&lt;strong&gt;Type&lt;/strong&gt　-> <strong>Type</strong>
-    static function decode_safe_tag( $tag, $safe_str ) {
+    static function decode_safe_tag_e( $tag, $safe_str ) {
         $safe_str = preg_replace_callback( "|&lt;($tag.*)&gt;(.*)&lt;/($tag)&gt;|im", function($matches){
             $tag_attrs = str_replace( '&quot;', '"', $matches[1]);
             return '<' . $tag_attrs . '>' . $matches[2] . '</' . $matches[3] . '>';
         }, $safe_str);
-        return $safe_str;
+        echo wp_kses_post($safe_str);
     }
     
     public function plfregist_item($key, $chklist, $filter) {
         $p_name = self::pluginkey_to_name($key);
         $opt_name = "plfregist[$key]";
         ?>
-        <tr id="plfregist_<?php echo $key; ?>">
-          <td class="filter-plugins-name"><?php echo $p_name; ?></td>
+        <tr id="plfregist_<?php echo esc_html($key); ?>">
+          <td class="filter-plugins-name"><?php echo esc_html($p_name); ?></td>
           <?php
             foreach($chklist as $urlkey){
+                $name = "plfurlkey[$urlkey][$key]";
                 $checked = (empty($filter['plfurlkey'][$urlkey]['plugins']) || false === strpos($filter['plfurlkey'][$urlkey]['plugins'], $key))? false : true;
-                echo '<td class="deny-type filter-type">' . self::altcheckbox("plfurlkey[$urlkey][$key]", $checked, '<span class="dashicons dashicons-admin-plugins"></span>') . '</td>';
+                echo '<td class="deny-type filter-type"><label><input type="checkbox" name="' . esc_html($name) . '" class="altcheckbox" value="1" ' . checked( $checked, 1, false ).  '/> <span class="dashicons dashicons-admin-plugins"></span></label></td>';
             }
             $radio = '';
             if(!empty($filter['_admin']['plugins']) && false !== strpos($filter['_admin']['plugins'], $key))
@@ -578,9 +615,9 @@ class Plf_setting {
             else if(!empty($filter['_pagefilter']['plugins']) && false !== strpos($filter['_pagefilter']['plugins'], $key))
                 $radio = '_pagefilter';
           ?>
-          <td class="radio-green filter-type"><label><input type="radio" name="<?php echo $opt_name; ?>" value='' <?php checked('', $radio); ?>/><span class="dashicons dashicons-admin-plugins"></span></label></td>
-          <td class="radio-red filter-type"><label><input type="radio" name="<?php echo $opt_name; ?>" value="_admin" <?php checked('_admin', $radio); ?>/><span class="dashicons dashicons-admin-plugins"></span></label></td>
-          <td class="radio-red filter-type"><label><input type="radio" name="<?php echo $opt_name; ?>" value="_pagefilter" <?php checked('_pagefilter', $radio); ?>/><span class="dashicons dashicons-admin-plugins"></span></label></td>
+          <td class="radio-green filter-type"><label><input type="radio" name="<?php echo esc_html($opt_name); ?>" value='' <?php checked('', $radio); ?>/><span class="dashicons dashicons-admin-plugins"></span></label></td>
+          <td class="radio-red filter-type"><label><input type="radio" name="<?php echo esc_html($opt_name); ?>" value="_admin" <?php checked('_admin', $radio); ?>/><span class="dashicons dashicons-admin-plugins"></span></label></td>
+          <td class="radio-red filter-type"><label><input type="radio" name="<?php echo esc_html($opt_name); ?>" value="_pagefilter" <?php checked('_pagefilter', $radio); ?>/><span class="dashicons dashicons-admin-plugins"></span></label></td>
         </tr>
         <?php
     }
@@ -596,9 +633,9 @@ class Plf_setting {
             $urlnum = count($groupkeys);
            ?>
            <tr>
-               <th class="filter-plugins-name" rowspan="2"><?php esc_html_e('Plugins'); ?></th>
+               <th class="filter-plugins-name" rowspan="2"><?php esc_html_e('Plugins', 'plf'); ?></th>
                <?php if($urlnum > 0) { ?>
-                 <th class="filter-type urlfilter" colspan="<?php echo $urlnum; ?>" style="font-weight:bold; font-size:smaller;"><?php esc_html_e('URL Group Filter', 'plf'); ?></th>
+                 <th class="filter-type urlfilter" colspan="<?php echo esc_html($urlnum); ?>" style="font-weight:bold; font-size:smaller;"><?php esc_html_e('URL Group Filter', 'plf'); ?></th>
                <?php } ?>
                <th class="filter-type filter-tmpl" colspan="3" style="font-weight:bold; font-size:smaller;"><?php esc_html_e('Page Type Filter', 'plf'); ?></th>
            </tr>
@@ -651,7 +688,7 @@ class Plf_setting {
                             }
                             $hint .= PHP_EOL . PHP_EOL;
                         }
-                        echo "<th class='filter-type urlfilter'><span title='$hint' style='font-size:smaller'>{$v}</span></th>";
+                        echo '<th class="filter-type urlfilter"><span title="' . esc_html($hint) . '" style="font-size:smaller">' . esc_html($v) . '</span></th>';
                     }
                } ?>
                <th class="filter-type filter-none"><span style="font-size:smaller"><?php esc_html_e('Normal', 'plf'); ?></span></th>
@@ -696,7 +733,7 @@ class Plf_setting {
             else
                 $this->plfregist_item($p_key, $chklist, $filter);
             if(!empty($modules)){
-                echo "<input type='hidden' name='plfregist[$p_key]' value='_pagefilter'>";
+                echo '<input type="hidden" name="plfregist[' . esc_html($p_key) . ']" value="_pagefilter">';
                 foreach ( $modules as $m_key => $val) {
                     $this->plfregist_item($m_key, $chklist, $filter);
                 }
@@ -710,43 +747,64 @@ class Plf_setting {
     <div class="grid-row">
       <div class="filter-description">
         <p><strong>[ <?php esc_html_e('Page Type Filter', 'plf'); ?> ]</strong></p>
-        <?php echo self::decode_safe_tag( 'strong', esc_html__('<strong>Normal</strong> - Exclude plugin from Page Type filter', 'plf')); ?><br />
-        <?php echo self::decode_safe_tag( 'strong', esc_html__('<strong>Admin Type</strong> - If you only use plugins for Admin pages.', 'plf')); ?><br />
-        <?php echo self::decode_safe_tag( 'strong', esc_html__('<strong>Page Type</strong> - If you want to activate or deactivate plugins for each Page Type and Single page.', 'plf')); ?>
+        <?php self::decode_safe_tag_e( 'strong', esc_html__('<strong>Normal</strong> - Exclude plugin from Page Type filter', 'plf')); ?><br />
+        <?php self::decode_safe_tag_e( 'strong', esc_html__('<strong>Admin Type</strong> - If you only use plugins for Admin pages.', 'plf')); ?><br />
+        <?php self::decode_safe_tag_e( 'strong', esc_html__('<strong>Page Type</strong> - If you want to activate or deactivate plugins for each Page Type and Single page.', 'plf')); ?>
         <p>
         <?php
         $checked = (!empty(self::$filter['admin_bar']))? self::$filter['admin_bar'] : false;
-        echo '<span class="admin-bar-option">' . self::checkbox("plf_option[admin_bar]", $checked, esc_html__('Add a link to admin bar for displaying the plugins filtered status', 'plf') ) . '</span>';
+        echo '<span class="admin-bar-option"><label><input type="checkbox" name="plf_option[admin_bar]" value="1" ' . checked( $checked, 1, false ) .  '/> ' . esc_html__('Add a link to admin bar for displaying the plugins filtered status', 'plf') . '</label></span>';
         ?>
         </p>
-        <p><?php esc_html_e('* Plugins with `Page Type Filter` selected are blocked, but you can Activate it for various Page type in the `Page Type Activation` and Single Page setting.', 'plf'); ?></p>
-    
-        <div class="exclude-pformat">
-            <p><?php echo self::decode_safe_tag( 'strong', esc_html__('<strong>Exclude Post Format Type</strong> - Choose Post Format Type you are not using. To exclude from Page Type item subject.', 'plf')); ?></p>
+        <p><?php esc_html_e('* Plugins with `Page Type Filter` selected are blocked, but you can Activate it for various Page type in the `Page Type Activation` and Single Page setting.', 'plf'); ?></p>    
+        <div class="ckbox-list">
+            <p><?php self::decode_safe_tag_e( 'strong', esc_html__('<strong>Exclude Post Format Type</strong> - Choose Post Format Type you are not using. To exclude from Page Type item subject.', 'plf')); ?></p>
+            <div>            
             <?php
-            $html =  '<div>';
             $pformat = array('image', 'gallery', 'video', 'audio', 'aside', 'status', 'quote', 'link', 'chat' );
             foreach ( $pformat as $type ) {
-                $checked = (!empty(self::$filter['exclude'][$type]))? self::$filter['exclude'][$type] : false;
-                $label = "<span>$type</span>";
-                $html .= self::checkbox("plf_option[exclude][$type]", $checked, $label);
+                $check = !empty(self::$filter['exclude'][$type])? true : false; 
+                ?>
+                <label><input type="checkbox" name="<?php echo esc_html("plf_option[exclude][$type]"); ?>" <?php checked($check); ?>/> <span><?php echo esc_html($type); ?></span></label>
+                <?php
             }
-            $html .= '</div>';
-            echo $html;
             ?>
+            </div>
         </div>
-        <p><strong>[ <?php esc_html_e('Ajax acceleration filter (Features for plugin developers)', 'plf'); ?> ]</strong></p>
-        <p><?php esc_html_e('If you are implementing Ajax requests in your plugin development, you can deactivate unnecessary plugins and speed up Ajax by setting the plugin slugs to be activated to `_ajax_plf` in the request data.','plf'); ?></p>
-        <?php
-            $checked = (!empty(self::$filter['ajax_accelfilter']))? self::$filter['ajax_accelfilter'] : false;
-            echo '<div class="option-item">' . self::checkbox("plf_option[ajax_accelfilter]", $checked, esc_html__('Ajax acceleration filter', 'plf') ) . '</div>';
-        ?>         
+        <div class="ckbox-list">
+            <p><?php self::decode_safe_tag_e( 'strong', esc_html__('<strong>Hide Single Post Filters</strong> - Hide single-post filter settings box for custom post type edit page', 'plf')); ?></p>
+            <div>            
+            <?php
+            $post_types = get_post_types( array('_builtin' => false), 'objects' );
+            if(!empty($post_types)){
+                foreach ( $post_types as $type ) {
+                    $check = !empty(self::$filter['hidecpt'][$type->name])? true : false; 
+                    ?>
+                    <label><input type="checkbox" name="<?php echo esc_html("plf_option[hidecpt][$type->name]"); ?>" <?php checked($check); ?>/> <span><?php echo esc_html("{$type->labels->name} ({$type->name})"); ?></span></label>
+                    <?php
+                }
+            } else {
+                esc_html_e('Custom post type not defined', 'plf');
+            }
+            ?>
+            </div>
+        </div> 
         <p><strong>[ <?php esc_html_e('Post Language Locale', 'plf'); ?> ]</strong></p>
         <p><?php esc_html_e('A very simple multilingual feature that uses MO translation files for the selected locale per Post/Page editing screen.','plf'); ?></p>
         <?php
             $checked = (!empty(self::$filter['language']))? self::$filter['language'] : false;
-            echo '<div class="option-item">' . self::checkbox("plf_option[language]", $checked, esc_html__('Language switching per post', 'plf') ) . '</div>';
+            echo '<div class="option-item"><label><input type="checkbox" name="plf_option[language]" value="1" ' . checked( $checked, 1, false ) .  '/> ' . esc_html__('Language switching per post', 'plf') . '</label></div>';
         ?>         
+        
+        <?php //開発モード限定機能
+        $devmode = wp_get_development_mode();
+        if (!empty($devmode)) {  ?>    
+        <p><strong>[ <?php esc_html_e('Ajax acceleration filter (Features for plugin developers)', 'plf'); ?> ]</strong></p>
+        <p><?php esc_html_e('If you are implementing Ajax requests in your plugin development, you can deactivate unnecessary plugins and speed up Ajax by setting the plugin slugs to be activated to `_ajax_plf` in the request data.','plf'); ?></p>
+        <?php
+            $checked = (!empty(self::$filter['ajax_accelfilter']))? self::$filter['ajax_accelfilter'] : false;
+            echo '<div class="option-item"><label><input type="checkbox" name="plf_option[ajax_accelfilter]" value="1" ' . checked( $checked, 1, false ) .  '/> ' . esc_html__('Ajax acceleration filter', 'plf') . '</label></div>';
+        } ?>         
       </div>
       <div class="side-info">
       <?php if(! is_plugin_active('plugin-load-filter-addon/plugin-load-filter-addon.php')){ ?>
@@ -763,6 +821,13 @@ class Plf_setting {
          <p><?php esc_html_e('See more information ', 'plf'); ?><a target="_blank" rel="noopener" href="https://celtislab.net/en/wp-realtime-image-optimizer/"> Realtime Image Optimizer</a></p>
         </div>
       <?php } ?>           
+      <?php if(! is_plugin_active('celtis-diff-monitor-backups/celtis-diff-monitor-backups.php')){ ?>
+        <div style="background-color: #f0fff0; border:1px solid #70c370; padding:4px 20px; margin: 10px 0;" >
+         <p><strong><?php esc_html_e('Introduction of DB/File Diff Monitor and Backups', 'plf'); ?></strong></p>
+         <p><?php esc_html_e('A security and backup plugin that detects unauthorized changes and minimizes data loss with rapid recovery.', 'plf'); ?></p>
+         <p><?php esc_html_e('See more information ', 'plf'); ?><a target="_blank" rel="noopener" href="https://celtislab.net/en/celtis-diff-monitor-backups/"> DB/File Diff Monitor and Backups</a></p>
+        </div>
+      <?php } ?>           
       </div>
     </div>
     <?php
@@ -775,14 +840,16 @@ class Plf_setting {
         $devlist = array('desktop','mobile');
         if(in_array( $p_key, $selplugins )){
             $p_name = self::pluginkey_to_name($p_key);                
-            echo "<tr><td class='plugins-name'>$p_name</td>";
+            echo '<tr><td class="plugins-name">' . esc_html($p_name) . '</td>';
             foreach($devlist as $devtype){
+                $name = "plfactive[$devtype][$p_key]";
                 $checked = (empty($filter['group'][$devtype]['plugins']) || false === strpos($filter['group'][$devtype]['plugins'], $p_key))? false : true;
-                echo '<td class="device-type">' . self::altcheckbox("plfactive[$devtype][$p_key]", $checked, '<span class="dashicons dashicons-yes"></span>') . '</td>';
+                echo '<td class="device-type"><label><input type="checkbox" name="' . esc_html($name) . '" class="altcheckbox" value="1" ' . checked( $checked, 1, false ).  '/> <span class="dashicons dashicons-yes"></span></label></td>';
             }
             foreach($chklist as $pgtype){
+                $name = "plfactive[$pgtype][$p_key]";
                 $checked = (empty($filter['group'][$pgtype]['plugins']) || false === strpos($filter['group'][$pgtype]['plugins'], $p_key))? false : true;
-                echo '<td class="ckbox-type">' . self::altcheckbox("plfactive[$pgtype][$p_key]", $checked, '<span class="dashicons dashicons-admin-plugins"></span>') . '</td>';
+                echo '<td class="ckbox-type"><label><input type="checkbox" name="' . esc_html($name) . '" class="altcheckbox" value="1" ' . checked( $checked, 1, false ).  '/> <span class="dashicons dashicons-admin-plugins"></span></label></td>';
             }
             echo "</tr>";
         }
@@ -796,7 +863,7 @@ class Plf_setting {
     <div id="wrap_activation-table">
     <table id="activation-table" class="widefat">
         <thead>
-           <tr><th class="plugins-name"><?php esc_html_e('Plugins'); ?></th>
+           <tr><th class="plugins-name"><?php esc_html_e('Plugins', 'plf'); ?></th>
                <th class="device-type"><span title="<?php esc_html_e('Desktop Device', 'plf'); ?>" class="dashicons dashicons-desktop"></span><br /><span style="font-size:xx-small">Desktop</span></th>
                <th class="device-type"><span title="<?php esc_html_e('Mobile Device', 'plf'); ?>" class="dashicons dashicons-smartphone"></span><br /><span style="font-size:xx-small">Mobile</span></th>
                <th class="ckbox-type"><span title="<?php esc_html_e('Home/Front-page', 'plf'); ?>" class="dashicons dashicons-admin-home"></span><br /><span style="font-size:xx-small">Home</span></th>
@@ -819,18 +886,18 @@ class Plf_setting {
                     if(!in_array($type, $exclude)){
                         $title = esc_html__('Post : ', 'plf') . $type;
                         $icon  = ($type === "link")? "dashicons-admin-links" : "dashicons-format-$type";
-                        echo '<th class="ckbox-type pformat"><span title="' . $title . '" class="dashicons ' . $icon .'"></span><br /><span style="font-size:xx-small">' . $type .'</span></th>';
+                        echo '<th class="ckbox-type pformat"><span title="' . esc_html($title) . '" class="dashicons ' . esc_html($icon) .'"></span><br /><span style="font-size:xx-small">' . esc_html($type) .'</span></th>';
                     }
                 }
                 if(function_exists('is_embed')){
                     $title = esc_html__('WordPress Embed Content Card (API)', 'plf');
-                    echo "<th class='ckbox-type tmpl-embed'><span title='$title' style='font-size:xx-small'>Embed Content</span></th>";
+                    echo '<th class="ckbox-type tmpl-embed"><span title="' . esc_html($title) . '" style="font-size:xx-small">Embed Content</span></th>';
                 }
                 $post_types = get_post_types( array('public' => true, '_builtin' => false) );                    
                 foreach ( $post_types as $post_type ) {
                     if(!empty($post_type)){
                        $title = esc_html__('Custom Post : ', 'plf') . $post_type;
-                       echo "<th class='ckbox-type tmpl-custom'><span title='$title' style='font-size:xx-small'>$post_type</span></th>";
+                       echo '<th class="ckbox-type tmpl-custom"><span title="' . esc_html($title) . '" style="font-size:xx-small">' . esc_html($post_type) . '</span></th>';
                     }
                 }
                ?>
@@ -887,7 +954,7 @@ class Plf_setting {
     
     //Option Setting Form Display
     public function plf_option_page() {
-        $clear_dialog = esc_html__('Plugin Load Filter Settings\nClick OK to clear it.', 'plf');
+        $clear_dialog = __('Plugin Load Filter Settings\nClick OK to clear it.', 'plf');
     ?>
     <h2><?php esc_html_e('Plugin Load Filter Settings', 'plf'); ?></h2>
     <p></p>
@@ -901,7 +968,7 @@ class Plf_setting {
                 <?php wp_nonce_field( 'plugin_load_filter'); ?>
                 <?php $this->plfregist_table(self::$plugins_inf, self::$filter); ?>
                 <p class="submit">
-                    <input type="submit" class="button-primary" name="clear_regist_filter" value="<?php esc_html_e('Clear', 'plf'); ?>" onclick="return confirm('<?php echo $clear_dialog; ?>')" />&nbsp;&nbsp;&nbsp;
+                    <input type="submit" class="button-primary" name="clear_regist_filter" value="<?php esc_html_e('Clear', 'plf'); ?>" onclick="return confirm('<?php echo esc_html($clear_dialog); ?>')" />&nbsp;&nbsp;&nbsp;
                     <input type="submit" class="button-primary" name="edit_regist_filter" value="<?php esc_html_e('Filter Entry &raquo;', 'plf'); ?>" />
                 </p>
             </form>
@@ -916,12 +983,12 @@ class Plf_setting {
                     ?>
                     <br />
                     <p><?php 
-                    echo self::decode_safe_tag( 'span', esc_html__('Select plugins to be activated for each page type by clicking on <span class="dashicons dashicons-admin-plugins"></span> mark from "page type filter" registered plugins.', 'plf')); 
+                    self::decode_safe_tag_e( 'span', esc_html__('Select plugins to be activated for each page type by clicking on <span class="dashicons dashicons-admin-plugins"></span> mark from "page type filter" registered plugins.', 'plf')); 
                     ?><br />
                        <?php esc_html_e('You can also select plugins to activate from Post/Page content editing screen.', 'plf') ?>
                     </p>                   
                     <p class="submit">
-                      <input type="submit" class="button-primary" name="clear_activate_page_filter" value="<?php esc_html_e('Clear', 'plf'); ?>" onclick="return confirm('<?php echo $clear_dialog; ?>')" />&nbsp;&nbsp;&nbsp;
+                      <input type="submit" class="button-primary" name="clear_activate_page_filter" value="<?php esc_html_e('Clear', 'plf'); ?>" onclick="return confirm('<?php echo esc_html($clear_dialog); ?>')" />&nbsp;&nbsp;&nbsp;
                       <input type="submit" class="button-primary" name="edit_activate_page_filter" value="<?php esc_html_e('Activate Plugin Entry &raquo;', 'plf'); ?>" />
                     </p>
                     <?php
@@ -943,9 +1010,16 @@ class Plf_setting {
      * Individual of the plug-in filter meta box for Post/Page/CustomPost
      **************************************************************************/
     function load_meta_boxes( $post_type, $post ) {
-        if ( current_user_can('activate_plugins', $post->ID) ) { 
+        if ( current_user_can('activate_plugins', $post->ID) ) {
+            $type = get_post_type();
+            $post_types = get_post_types( array('public' => true, '_builtin' => true) );
+            if(!in_array($type, $post_types)){
+                $custom_types = get_post_types( array('_builtin' => false) );
+                if(!in_array($type, $custom_types) || !empty(self::$filter['hidecpt'][$type])){
+                    return;
+                }
+            }
           	add_meta_box( 'pluginfilterdiv', esc_html__( 'Plugin Load Filter', 'plf' ), array(&$this, 'plf_meta_box'), null, 'side' );
-            //add_action( 'admin_head', array(&$this, 'plf_css' ));
             add_action( 'admin_footer', array(&$this, 'plf_meta_script' ));
         }
     }
@@ -965,8 +1039,9 @@ class Plf_setting {
             $p_name = self::pluginkey_to_name($p_key);                
             $html .= "<tr><td class='plugins-name'>$p_name</td>";
             foreach($devlist as $devtype){
+                $name  = "plf_option[$devtype][$p_key]";
                 $checked = (empty($device[$devtype]) || false === strpos($device[$devtype], $p_key))? false : true;
-                $html .= "<td class='device-type $devtype'>" . self::altcheckbox("plf_option[$devtype][$p_key]", $checked, '<span class="dashicons dashicons-yes"></span>') . '</td>';
+                $html .= '<td class="device-type ' . esc_html($devtype) . '"><label><input type="checkbox" name="' . esc_html($name) . '" class="altcheckbox" value="1" ' . checked( $checked, 1, false ).  '/> <span class="dashicons dashicons-yes"></span></label></td>';
             }
             $html .= "</tr>";
         }
@@ -1059,7 +1134,7 @@ class Plf_setting {
                 <label><input type="radio" name="pagefilter" value="default" <?php checked('default', $option['filter']); ?>/><?php esc_html_e('Not Use', 'plf' ); ?></label>
                 <label><input type="radio" name="pagefilter" value="include" <?php checked('include', $option['filter']); ?>/><?php esc_html_e('Use', 'plf'); ?></label>
                 <div id="page-filter-stat">
-                <?php echo $this->pagefilter_plugins_checklist( self::$plugins_inf, $pgfilter, $option ); ?>
+                <?php echo wp_kses($this->pagefilter_plugins_checklist( self::$plugins_inf, $pgfilter, $option ), self::get_allowed_tags()); ?>
                 </div>
                 <div class="plf-option-info"><?php esc_html_e('Plugin Activate/Deactivate filter for this Post only', 'plf'); ?></div>
                 <?php
@@ -1081,10 +1156,10 @@ class Plf_setting {
                     $o_post_id = (is_numeric($o_post_id))? $o_post_id : '';
                     $locale_mode = '';
                 }
-                echo '<p class="hide-if-no-js"><a id="plugin-filter-submit" class="button" href="#pluginfilterdiv" onclick="WPAddPagePluginLoadFilter(\'' . $ajax_nonce . '\');return false;" >'. esc_html__('Save') .'</a></p>';
+                echo '<p class="hide-if-no-js"><a id="plugin-filter-submit" class="button" href="#pluginfilterdiv" onclick="WPAddPagePluginLoadFilter(\'' . esc_html($ajax_nonce) . '\');return false;" >'. esc_html__('Save') .'</a></p>';
                 ?>
                 <hr>
-                <div id="plf-post-locale-select" <?php echo $locale_mode; ?>>
+                <div id="plf-post-locale-select" <?php echo esc_html($locale_mode); ?>>
                     <p><?php esc_html_e( 'Language of this post', 'plf' ); ?> <span class="dashicons dashicons-translation" aria-hidden="true"></span></p>
                     <?php
                     wp_dropdown_languages(
@@ -1098,7 +1173,7 @@ class Plf_setting {
                     );
                     ?>
                     <p><?php esc_html_e( 'Original post ID for hreflang', 'plf' ); ?></p>
-                    <input type="text" id="plf_original_post_id" name="plf_original_post_id" size="8" value="<?php echo $o_post_id; ?>" />
+                    <input type="text" id="plf_original_post_id" name="plf_original_post_id" size="8" value="<?php echo esc_html($o_post_id); ?>" />
                     <div class="hflang-group-edit-lonk">
                         <?php
                         $id = (is_numeric($o_post_id))? $o_post_id : $post->ID;
@@ -1117,7 +1192,7 @@ class Plf_setting {
                                         }
                                         $url = get_edit_post_link( $v );
                                         if(!empty($url)){
-                                            echo '<p><a class="edit-post-locale-link" target="_blank"  href="' . $url .'" rel="external noreferrer noopener">' . esc_html__('Edit Post') . " ($l) " . '<span class="dashicons dashicons-external" aria-hidden="true"></span></a></p>';
+                                            echo '<p><a class="edit-post-locale-link" target="_blank"  href="' . esc_html($url) .'" rel="external noreferrer noopener">' . esc_html__('Edit Post') . ' (' . esc_html($l) . ') ' . '<span class="dashicons dashicons-external" aria-hidden="true"></span></a></p>';
                                         }
                                     }
                                 }
@@ -1126,7 +1201,7 @@ class Plf_setting {
                         ?>
                     </div>
                     <div class="plf-option-info"><?php esc_html_e('Use MO translation file for the selected locale. When Original Post ID is registered, posts with the same Original Post ID are treated as `hreflang` metadata group.', 'plf'); ?></div>
-                    <?php echo '<p class="hide-if-no-js"><a id="plugin-filter-submit" class="button" href="#pluginfilterdiv" onclick="WPAddPagePluginLoadFilter(\'' . $ajax_nonce . '\');return false;" >'. esc_html__('Save') .'</a></p>'; ?>
+                    <?php echo '<p class="hide-if-no-js"><a id="plugin-filter-submit" class="button" href="#pluginfilterdiv" onclick="WPAddPagePluginLoadFilter(\'' . esc_html($ajax_nonce) . '\');return false;" >'. esc_html__('Save') .'</a></p>'; ?>
                 </div>
             </div>
         <?php
@@ -1143,7 +1218,7 @@ class Plf_setting {
             
             if(!empty(self::$filter['language'])){
                 if(isset($_POST['locale'])){
-                    $s_locale = (!empty($_POST['locale']))? $_POST['locale'] : 'en_US';
+                    $s_locale = (!empty($_POST['locale']))? sanitize_text_field(wp_unslash($_POST['locale'])) : 'en_US';
                     $languages  = get_available_languages();
                     $languages[]  = 'en_US'; //add WP default locale 
                     if ( in_array( $s_locale, $languages ) ) {
@@ -1183,12 +1258,13 @@ class Plf_setting {
                 }
             }
             $pgfilter = (!empty(self::$filter['_pagefilter']['plugins']))? self::$filter['_pagefilter']['plugins'] : array();
-            $option["filter"] = (empty($_POST['filter']))? 'default' : $_POST['filter'];
+            $option["filter"] = (empty($_POST['filter']))? 'default' : sanitize_text_field(wp_unslash($_POST['filter']));
             if('default' == $option["filter"]){
                 delete_post_meta( $pid, '_plugin_load_filter');
             } else {
                 $plugins = array();
-                if( preg_match_all('/plf_option\[desktop\]\[(.+?)\]/u', $_POST['desktop'], $matches)){
+                $desktop = sanitize_text_field(wp_unslash($_POST['desktop']));
+                if( preg_match_all('/plf_option\[desktop\]\[(.+?)\]/u', $desktop, $matches)){
                     if(!empty($matches[1])){ 
                         foreach ($matches[1] as $plugin){
                             $plugins[] = $plugin;
@@ -1197,7 +1273,8 @@ class Plf_setting {
                     }
                 }
                 $plugins = array();
-                if( preg_match_all('/plf_option\[mobile\]\[(.+?)\]/u', $_POST['mobile'], $matches)){
+                $mobile  = sanitize_text_field(wp_unslash($_POST['mobile']));
+                if( preg_match_all('/plf_option\[mobile\]\[(.+?)\]/u', $mobile, $matches)){
                     if(!empty($matches[1])){ 
                         foreach ($matches[1] as $plugin){
                             $plugins[] = $plugin;
@@ -1247,7 +1324,7 @@ class Plf_setting {
     function activetab_script() { ?>
     <script type='text/javascript' >
     /* <![CDATA[ */
-    var plf_activetab = <?php echo $this->tab_num; ?>
+    var plf_activetab = <?php echo esc_html($this->tab_num); ?>
     /* ]]> */
     jQuery(document).ready(function ($) { 
         plf_setting_tabs(); 
@@ -1257,7 +1334,6 @@ class Plf_setting {
     <?php }
     
     function plf_meta_script() { 
-        $reload_dialog = esc_html__('Plugin Load Filter setting has been updated.\nClick OK to reload the page.', 'plf');
     ?>
     <script type='text/javascript' >
     WPAddPagePluginLoadFilter = function(nonce){ 
@@ -1278,7 +1354,7 @@ class Plf_setting {
         }).then(
             function (response, dataType) {
                 jQuery('#page-filter-stat').html(response.data);
-                if(window.confirm('<?php echo $reload_dialog; ?>')){
+                if(window.confirm('<?php esc_html_e('Plugin Load Filter setting has been updated.\nClick OK to reload the page.', 'plf'); ?>')){
                     location.reload();
                 }
             },

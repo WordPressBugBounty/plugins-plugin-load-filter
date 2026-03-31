@@ -2,7 +2,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: plf\n"
-"POT-Creation-Date: 2023-12-01 08:23+0000\n"
+"POT-Creation-Date: 2026-03-27 07:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: Yasunari Enomoto <enomoto@celtislab.net>\n"
 "Language-Team: \n"
@@ -17,76 +17,92 @@ msgstr ""
 "Language: \n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;"
 
-#: plugin-load-filter.php:722
+#: plugin-load-filter.php:760
 msgid ""
 "* Plugins with `Page Type Filter` selected are blocked, but you can Activate "
 "it for various Page type in the `Page Type Activation` and Single Page "
 "setting."
 msgstr ""
 
-#: plugin-load-filter.php:714
+#: plugin-load-filter.php:752
 msgid "<strong>Admin Type</strong> - If you only use plugins for Admin pages."
 msgstr ""
 
-#: plugin-load-filter.php:725
+#: plugin-load-filter.php:762
 msgid ""
 "<strong>Exclude Post Format Type</strong> - Choose Post Format Type you are "
 "not using. To exclude from Page Type item subject."
 msgstr ""
 
-#: plugin-load-filter.php:713
+#: plugin-load-filter.php:776
+msgid ""
+"<strong>Hide Single Post Filters</strong> - Hide single-post filter settings "
+"box for custom post type edit page"
+msgstr ""
+
+#: plugin-load-filter.php:751
 msgid "<strong>Normal</strong> - Exclude plugin from Page Type filter"
 msgstr ""
 
-#: plugin-load-filter.php:715
+#: plugin-load-filter.php:753
 msgid ""
 "<strong>Page Type</strong> - If you want to activate or deactivate plugins "
 "for each Page Type and Single page."
 msgstr ""
 
-#: plugin-load-filter.php:745
+#: plugin-load-filter.php:828
+msgid ""
+"A security and backup plugin that detects unauthorized changes and minimizes "
+"data loss with rapid recovery."
+msgstr ""
+
+#: plugin-load-filter.php:794
 msgid ""
 "A very simple multilingual feature that uses MO translation files for the "
 "selected locale per Post/Page editing screen."
 msgstr ""
 
-#: plugin-load-filter.php:925
+#: plugin-load-filter.php:993
 msgid "Activate Plugin Entry &raquo;"
 msgstr ""
 
-#: plugin-load-filter.php:719
+#: plugin-load-filter.php:757
 msgid "Add a link to admin bar for displaying the plugins filtered status"
 msgstr ""
 
-#: plugin-load-filter.php:658
+#: plugin-load-filter.php:696
 msgid "Admin Type"
 msgstr ""
 
-#: plugin-load-filter.php:742
+#: plugin-load-filter.php:807
 msgid "Ajax acceleration filter"
 msgstr ""
 
-#: plugin-load-filter.php:738
+#: plugin-load-filter.php:803
 msgid "Ajax acceleration filter (Features for plugin developers)"
 msgstr ""
 
-#: plugin-load-filter.php:803
+#: plugin-load-filter.php:871
 msgid "Archive page"
 msgstr ""
 
-#: plugin-load-filter.php:805
+#: plugin-load-filter.php:873
 msgid "Attachment page"
 msgstr ""
 
-#: plugin-load-filter.php:904 plugin-load-filter.php:924
+#: plugin-load-filter.php:972 plugin-load-filter.php:992
 msgid "Clear"
 msgstr ""
 
-#: plugin-load-filter.php:832
+#: plugin-load-filter.php:900
 msgid "Custom Post : "
 msgstr ""
 
-#: plugin-load-filter.php:800 plugin-load-filter.php:988
+#: plugin-load-filter.php:788
+msgid "Custom post type not defined"
+msgstr ""
+
+#: plugin-load-filter.php:868 plugin-load-filter.php:1064
 msgid "Desktop Device"
 msgstr ""
 
@@ -100,19 +116,19 @@ msgstr ""
 msgid "enomoto@celtislab"
 msgstr ""
 
-#: plugin-load-filter.php:905
+#: plugin-load-filter.php:973
 msgid "Filter Entry &raquo;"
 msgstr ""
 
-#: plugin-load-filter.php:896
+#: plugin-load-filter.php:964
 msgid "Filter Registration"
 msgstr ""
 
-#: plugin-load-filter.php:276
+#: plugin-load-filter.php:274
 msgid "General Settings"
 msgstr ""
 
-#: plugin-load-filter.php:802
+#: plugin-load-filter.php:870
 msgid "Home/Front-page"
 msgstr ""
 
@@ -124,74 +140,78 @@ msgstr ""
 msgid "https://celtislab.net/en/wp-plugin-load-filter"
 msgstr ""
 
-#: plugin-load-filter.php:739
+#: plugin-load-filter.php:804
 msgid ""
 "If you are implementing Ajax requests in your plugin development, you can "
 "deactivate unnecessary plugins and speed up Ajax by setting the plugin slugs "
 "to be activated to `_ajax_plf` in the request data."
 msgstr ""
 
-#: plugin-load-filter.php:754
+#: plugin-load-filter.php:813
 msgid "Introduction of Addon"
 msgstr ""
 
-#: plugin-load-filter.php:761
+#: plugin-load-filter.php:827
+msgid "Introduction of DB/File Diff Monitor and Backups"
+msgstr ""
+
+#: plugin-load-filter.php:820
 msgid "Introduction of Realtime Image Optimizer"
 msgstr ""
 
-#: plugin-load-filter.php:1088
+#: plugin-load-filter.php:1164
 msgid "Language of this post"
 msgstr ""
 
-#: plugin-load-filter.php:748
+#: plugin-load-filter.php:797
 msgid "Language switching per post"
 msgstr ""
 
-#: plugin-load-filter.php:801 plugin-load-filter.php:989
+#: plugin-load-filter.php:869 plugin-load-filter.php:1065
 msgid "Mobile Device"
 msgstr ""
 
-#: plugin-load-filter.php:657
+#: plugin-load-filter.php:695
 msgid "Normal"
 msgstr ""
 
-#: plugin-load-filter.php:1059
+#: plugin-load-filter.php:1135
 msgid "Not Use"
 msgstr ""
 
-#: plugin-load-filter.php:1100
+#: plugin-load-filter.php:1176
 msgid "Original post ID for hreflang"
 msgstr ""
 
-#: plugin-load-filter.php:806
+#: plugin-load-filter.php:874
 msgid "Page"
 msgstr ""
 
-#: plugin-load-filter.php:931 plugin-load-filter.php:983
+#: plugin-load-filter.php:999 plugin-load-filter.php:1059
 msgid "Page Filter is not registered"
 msgstr ""
 
-#: plugin-load-filter.php:659
+#: plugin-load-filter.php:697
 msgid "Page Type"
 msgstr ""
 
-#: plugin-load-filter.php:897
+#: plugin-load-filter.php:965
 msgid "Page Type Activation"
 msgstr ""
 
-#: plugin-load-filter.php:603 plugin-load-filter.php:712
+#: plugin-load-filter.php:641 plugin-load-filter.php:750
 msgid "Page Type Filter"
 msgstr ""
 
-#: plugin-load-filter.php:1064
+#: plugin-load-filter.php:1140
 msgid "Plugin Activate/Deactivate filter for this Post only"
 msgstr ""
 
-#: plugin-load-filter.php:1058
+#: plugin-load-filter.php:1134
 msgid "Plugin filter for Single post"
 msgstr ""
 
-#: plugin-load-filter.php:275 plugin-load-filter.php:947
+#: plugin-load-filter.php:273 plugin-load-filter.php:1023
 msgid "Plugin Load Filter"
 msgstr ""
 
@@ -199,78 +219,83 @@ msgstr ""
 msgid "plugin load filter"
 msgstr ""
 
-#: plugin-load-filter.php:1260
+#: plugin-load-filter.php:1358
 msgid ""
 "Plugin Load Filter setting has been updated.\\nClick OK to reload the page."
 msgstr ""
 
-#: plugin-load-filter.php:892
+#: plugin-load-filter.php:960
 msgid "Plugin Load Filter Settings"
 msgstr ""
 
-#: plugin-load-filter.php:890
+#: plugin-load-filter.php:958
 msgid "Plugin Load Filter Settings\\nClick OK to clear it."
 msgstr ""
 
-#: plugin-load-filter.php:807 plugin-load-filter.php:820
+#: plugin-load-filter.php:637 plugin-load-filter.php:867
+msgid "Plugins"
+msgstr ""
+
+#: plugin-load-filter.php:875 plugin-load-filter.php:888
 msgid "Post : "
 msgstr ""
 
-#: plugin-load-filter.php:744
+#: plugin-load-filter.php:793
 msgid "Post Language Locale"
 msgstr ""
 
-#: plugin-load-filter.php:804
+#: plugin-load-filter.php:872
 msgid "Search page"
 msgstr ""
 
-#: plugin-load-filter.php:756 plugin-load-filter.php:763
+#: plugin-load-filter.php:815 plugin-load-filter.php:822
+#: plugin-load-filter.php:829
 msgid "See more information "
 msgstr ""
 
-#: plugin-load-filter.php:919
+#: plugin-load-filter.php:987
 msgid ""
 "Select plugins to be activated for each page type by clicking on <span "
 "class=\"dashicons dashicons-admin-plugins\"></span> mark from \"page type "
 "filter\" registered plugins."
 msgstr ""
 
-#: plugin-load-filter.php:807
+#: plugin-load-filter.php:875
 msgid "Standard"
 msgstr ""
 
-#: plugin-load-filter.php:755
+#: plugin-load-filter.php:814
 msgid ""
 "Thank you for using Plugin Load Filter. We offer URL filtering as Addon. "
 "Please consider using Addon!"
 msgstr ""
 
-#: plugin-load-filter.php:601
+#: plugin-load-filter.php:639
 msgid "URL Group Filter"
 msgstr ""
 
-#: plugin-load-filter.php:1060
+#: plugin-load-filter.php:1136
 msgid "Use"
 msgstr ""
 
-#: plugin-load-filter.php:1128
+#: plugin-load-filter.php:1204
 msgid ""
 "Use MO translation file for the selected locale. When Original Post ID is "
 "registered, posts with the same Original Post ID are treated as `hreflang` "
 "metadata group."
 msgstr ""
 
-#: plugin-load-filter.php:762
+#: plugin-load-filter.php:821
 msgid ""
 "We sell Image Optimization plugin. Reduce and speed up data size by "
 "converting to WebP / AVIF."
 msgstr ""
 
-#: plugin-load-filter.php:826
+#: plugin-load-filter.php:894
 msgid "WordPress Embed Content Card (API)"
 msgstr ""
 
-#: plugin-load-filter.php:921
+#: plugin-load-filter.php:989
 msgid ""
 "You can also select plugins to activate from Post/Page content editing "
 "screen."

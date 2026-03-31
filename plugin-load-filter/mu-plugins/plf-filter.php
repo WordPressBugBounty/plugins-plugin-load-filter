@@ -2,7 +2,7 @@
 /*
   Plugin Name: plugin load filter [plf-filter]
   Description: Dynamically activated only plugins that you have selected in each page. [Note] plf-filter has been automatically installed / deleted by Activate / Deactivate of "load filter plugin".
-  Version: 4.3.1
+  Version: 4.4.0
   Plugin URI: http://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: http://celtislab.net/
@@ -38,15 +38,73 @@ function plf_logged_in_hash( $data, $algo = 'md5' ) {
     if ( ! in_array( $algo, hash_hmac_algos(), true ) ) {
         throw new InvalidArgumentException(
             sprintf(
-                /* translators: 1: Name of a cryptographic hash algorithm. 2: List of supported algorithms. */
-                __( 'Unsupported hashing algorithm: %1$s. Supported algorithms are: %2$s' ),
-                $algo,
-                implode( ', ', hash_hmac_algos() )
+                esc_html( 'Unsupported hashing algorithm: %1$s. Supported algorithms are: %2$s' ),
+                esc_html($algo),
+                implode( ', ', esc_html(hash_hmac_algos()) )
             )
         );
     }    
     return hash_hmac( $algo, $data, $salt );
 }
+
+//plf 用の $_GET, $_POST, $_REQUEST, $_COOKIE, $_SERVER サニタイズ
+function plf_sanitize( $value, $type = 'text' ) {
+    if (is_array($value)) {
+        foreach ($value as $k => $v) {
+            $value[$k] = plf_sanitize($v, $type);
+        }
+        return $value;
+    }
+    // wp_magic_quotes() 判定
+    if (function_exists('did_action') && did_action('sanitize_comment_cookies')) {
+        $value = wp_unslash($value);
+    }
+    switch ($type) {
+        case 'text':
+            if (function_exists('sanitize_text_field')) {
+                return sanitize_text_field($value);
+            }
+            $value = (string)$value;
+            // phpcs:disable WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
+            $value = strip_tags($value);
+            $value = preg_replace('/[\r\n\t ]+/', ' ', $value);
+            $value = preg_replace('/[\x00-\x1F\x7F]/u', '', $value);
+            return trim($value);
+        case 'textarea':
+            if (function_exists('sanitize_textarea_field')) {
+                return sanitize_textarea_field($value);
+            }
+            $value = (string)$value;
+            // phpcs:disable WordPress.WP.AlternativeFunctions.strip_tags_strip_tags
+            $value = strip_tags($value);
+            $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value);
+            return trim($value);
+        case 'url':
+            if (function_exists('esc_url_raw')) {
+                return esc_url_raw($value);
+            }
+            return filter_var($value, FILTER_SANITIZE_URL);
+        case 'int':
+            if (function_exists('absint')) {
+                return absint($value);
+            }
+            return (int)$value;
+        case 'bool':
+            if (function_exists('rest_sanitize_boolean')) {
+                return rest_sanitize_boolean($value);
+            }
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        case 'key': //slug 等の識別子用 英数字、_- に限定
+            if (function_exists('sanitize_key')) {
+                return sanitize_key($value);
+            }
+            $value = strtolower((string)$value);
+            $value = preg_replace('/[^a-z0-9_\-]/', '', $value);
+            return $value;
+        default:
+            return $value;
+    }
+}      
 
 if ( !function_exists('wp_get_current_user') ) :
 /**
@@ -58,7 +116,8 @@ function wp_get_current_user() {
     //ver4.2.1 Depending on the environment, a JS error may occur in the iframe in the Customizer, so an IFRAME_REQUEST check has been added.
     if ( ! function_exists( 'wp_set_current_user' ) || (! defined( 'IFRAME_REQUEST') && did_action( 'setup_theme' ) === 0) ){    
     	if ( defined( 'LOGGED_IN_COOKIE' ) && !empty( $_COOKIE[ LOGGED_IN_COOKIE ] ) ) {
-            $cookie_elements = explode( '|', $_COOKIE[ LOGGED_IN_COOKIE ] );
+            $login_cookie = plf_sanitize($_COOKIE[ LOGGED_IN_COOKIE ]);
+            $cookie_elements = explode( '|', $login_cookie );
             if ( count( $cookie_elements ) === 4 ) {
                 list( $username, $expiration, $token, $hmac ) = $cookie_elements;
         		if ( $expiration > time() ) {
@@ -255,7 +314,7 @@ class Plf_filter {
       <div class="dialog-overlay"></div>
       <div class="dialog">
           <p class="dialog-title"><strong><?php echo 'Plugin Load Filter status'; ?></strong></p>  
-          <div><textarea id="plf-filtered-result" style="width:100%; height:320px; margin:5px 0;"><?php echo $text; ?></textarea></div>
+          <div><textarea id="plf-filtered-result" style="width:100%; height:320px; margin:5px 0;"><?php echo esc_html($text); ?></textarea></div>
           <div class="button-group">
             <a href="#" id="plf-status-close" class="button" aria-label="Close modal">Close</a>
           </div>
@@ -477,7 +536,8 @@ class Plf_filter {
         if(empty(self::$rlocale)) {
             $pid = 0;
             if(isset($_SERVER['REQUEST_URI'])){
-                if ( strpos( $_SERVER['REQUEST_URI'], 'wp-json' ) !== false || preg_match( '/(admin|wc)-ajax/', $_SERVER['REQUEST_URI'])) {
+                $req_uri = plf_sanitize($_SERVER['REQUEST_URI'], 'url');
+                if ( strpos( $req_uri, 'wp-json' ) !== false || preg_match( '/(admin|wc)-ajax/', $req_uri)) {
                     $refurl = wp_get_raw_referer();
                     if(!empty( $refurl )){
                         if(preg_match( '/post=([0-9]+)?/', $refurl, $match )){
@@ -489,11 +549,11 @@ class Plf_filter {
                             self::$url2id[$refurl] = (int)$pid;
                         }                
                     }
-                } elseif ( strpos( $_SERVER['REQUEST_URI'], 'wp-admin' ) !== false) {
+                } elseif ( strpos( $req_uri, 'wp-admin' ) !== false) {
                     if ( isset( $_GET['post'] ) ) {
-                        $pid = (int) $_GET['post'];
+                        $pid = (int)plf_sanitize($_GET['post']);
                     } elseif ( isset( $_POST['post_ID'] ) ) {
-                        $pid = (int) $_POST['post_ID'];
+                        $pid = (int)plf_sanitize($_POST['post_ID']);
                     }
                 } else {
                     global $wp_query;
@@ -632,9 +692,9 @@ class Plf_filter {
                     } elseif ( isset( $_GET[ $wpvar ] ) && isset( $_POST[ $wpvar ] ) && $_GET[ $wpvar ] !== $_POST[ $wpvar ] ) {
                         wp_die( 'A variable mismatch has been detected.', 'Sorry, you are not allowed to view this item.', 400 );                        
                     } elseif ( isset( $_POST[$wpvar] ) ){
-                        $args->query_vars[$wpvar] = $_POST[$wpvar];
+                        $args->query_vars[$wpvar] = plf_sanitize($_POST[$wpvar]);
                     } elseif ( isset( $_GET[$wpvar] ) ){
-                        $args->query_vars[$wpvar] = $_GET[$wpvar];
+                        $args->query_vars[$wpvar] = plf_sanitize($_GET[$wpvar]);
                     } elseif ( isset( $perma_query_vars[$wpvar] ) ){
                         $args->query_vars[$wpvar] = $perma_query_vars[$wpvar];
                     }
@@ -825,9 +885,9 @@ class Plf_filter {
             if((strpos($_url['url_path'], 'admin-ajax.php' ) !== false || strpos($_url['url_q_and'], 'wc-ajax' ) !== false) && (int)$filter['targetpage'] === 2){
                 $action = '';
                 if(isset($_REQUEST['action'])){
-                    $action = esc_attr($_REQUEST['action']);
+                    $action = plf_sanitize( $_REQUEST['action'] );
                 } elseif(!empty( $_GET['wc-ajax'] )) {
-                    $action = sanitize_text_field( wp_unslash( $_GET['wc-ajax'] ) );
+                    $action = plf_sanitize( $_GET['wc-ajax'] );
                 }
                 if(!empty($filter['ajax_action'])){
                     if( $action == $filter['ajax_action'] ){
@@ -843,9 +903,9 @@ class Plf_filter {
                 $post_id = 0;
                 if ( isset( $_GET['post'] ) && isset( $_POST['post_ID'] ) && (int) $_GET['post'] !== (int) $_POST['post_ID'] ) {
                 } elseif ( isset( $_GET['post'] ) ) {
-                    $post_id = (int) $_GET['post'];
+                    $post_id = (int)plf_sanitize($_GET['post']);
                 } elseif ( isset( $_POST['post_ID'] ) ) {
-                    $post_id = (int) $_POST['post_ID'];
+                    $post_id = (int)plf_sanitize($_POST['post_ID']);
                 }
                 if(empty($post_id)){
                     //クエリーパラメータ形式だとポストIDが取得できないようなので、シュミレータ以外なら $wp_query->post->ID を使う
@@ -1080,10 +1140,10 @@ class Plf_filter {
             return false;
         }
         
-        $req_url = (isset($_SERVER['REQUEST_URI']))? $_SERVER['REQUEST_URI'] : '';
+        $req_url = (isset($_SERVER['REQUEST_URI']))? plf_sanitize($_SERVER['REQUEST_URI'], 'url') : '';
         $req_url = str_replace( "\\", "/", $req_url);
         $parse_url = parse_url($req_url);
-        $action = (!empty($parse_url['path']) && strpos($parse_url['path'], 'admin-ajax.php' ) !== false && isset($_REQUEST['action']))? esc_attr($_REQUEST['action']) : '';
+        $action = (!empty($parse_url['path']) && strpos($parse_url['path'], 'admin-ajax.php' ) !== false && isset($_REQUEST['action']))? plf_sanitize($_REQUEST['action']) : '';
         
         $act_plugins  = ($option === 'active_sitewide_plugins')? array_keys( (array)$opt_value ) : maybe_unserialize( $opt_value );
         if($option === 'celtispack_active_modules'){
@@ -1197,9 +1257,9 @@ class Plf_filter {
             }
             //Ajax acceleration plugin filter (for plugin developers)
             if(!empty($action) && !empty(self::$filter['ajax_accelfilter'])){
-                $slugs  = (isset($_REQUEST['_ajax_plf']))? wp_kses( stripslashes($_REQUEST['_ajax_plf']), 'strip' ) : '';
+                $slugs  = (isset($_REQUEST['_ajax_plf']))? plf_sanitize($_REQUEST['_ajax_plf']) : '';
                 if(!empty($slugs)){
-                    $referer = (!empty( $_SERVER['HTTP_REFERER'] )) ? wp_kses( stripslashes($_SERVER['HTTP_REFERER']), 'strip' ) : '';
+                    $referer = (!empty( $_SERVER['HTTP_REFERER'] )) ? plf_sanitize($_SERVER['HTTP_REFERER'], 'url') : '';
                     $parse_ref = parse_url($referer);
                     if(!empty($parse_ref['host']) && strpos( home_url(), $parse_ref['host'] ) !== false){
                         $new_plugins = self::ajaxfilter_to_active_plugins( $slugs, $option, $act_plugins );                        

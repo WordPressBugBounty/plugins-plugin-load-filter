@@ -1,10 +1,10 @@
 === Plugin Load Filter ===
 Contributors: enomoto celtislab
 Tags: dynamic deactivate plugins, disable plugins, performance, Locale switching
-Requires at least: 6.0
-Tested up to: 6.9
+Requires at least: 6.3
+Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 4.3.1
+Stable tag: 4.4.0
 Donate link: https://celtislab.net/en/wp-plugin-load-filter-addon/
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -80,6 +80,16 @@ URL filter is changed incompatible with the old version, so if you used it you n
 3. Setting of each post
 
 == Changelog ==
+
+= 4.4.0 =
+* 2026-3-30
+* WP7.0 support
+* Added option Custom Post Types for Applying Single Post Plugin Filters
+* changed Ajax acceleration filter - Limited to development (WP_DEVELOPMENT_MODE)
+* Removed the explicit call to load_plugin_textdomain
+* Security measures
+* Changed Requires WP6.3
+
 
 = 4.3.1 =
 * 2026-2-19
