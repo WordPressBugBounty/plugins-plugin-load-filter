@@ -2,7 +2,7 @@
 /*
   Plugin Name: plugin load filter [plf-filter]
   Description: Dynamically activated only plugins that you have selected in each page. [Note] plf-filter has been automatically installed / deleted by Activate / Deactivate of "load filter plugin".
-  Version: 4.4.0
+  Version: 4.4.1
   Plugin URI: http://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: http://celtislab.net/
@@ -1252,7 +1252,7 @@ class Plf_filter {
         
         if($urltype === 'admin'){
             //wp-admin/plugins.php or wp-admin/update-core.php request : Do not filter this request URL
-            if(strpos($parse_url['path'], '/plugins.php' ) !== false || strpos($parse_url['path'], '/update-core.php' ) !== false){
+            if(!empty($parse_url['path']) && (strpos($parse_url['path'], '/plugins.php' ) !== false || strpos($parse_url['path'], '/update-core.php' ) !== false)){
                 return false;
             }
             //Ajax acceleration plugin filter (for plugin developers)
@@ -1334,7 +1334,7 @@ class Plf_filter {
                         }
                     }                        
                 }
-                if(empty($wp_query->post)){
+                if(!empty($parse_url['path']) && empty($wp_query->post)){
                     //パーマリンクをカスタムするプラグイン等により URL から　post ID が所得できない場合用のフィルターフック
                     $post_id = apply_filters('plf_singler_custom_url_to_postid', 0, $parse_url['path'], self::$base_plugins);
                     if(!empty($post_id)){
@@ -1347,7 +1347,7 @@ class Plf_filter {
                         }                            
                     }
                 }                
-                if(empty($wp_query->post)){                    
+                if(empty($parse_url['path']) || empty($wp_query->post)){                    
                     $unknown = true;
                 }                
             }

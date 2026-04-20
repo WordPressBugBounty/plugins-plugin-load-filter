@@ -4,7 +4,7 @@ Tags: dynamic deactivate plugins, disable plugins, performance, Locale switching
 Requires at least: 6.3
 Tested up to: 7.0
 Requires PHP: 8.1
-Stable tag: 4.4.0
+Stable tag: 4.4.1
 Donate link: https://celtislab.net/en/wp-plugin-load-filter-addon/
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -80,6 +80,11 @@ URL filter is changed incompatible with the old version, so if you used it you n
 3. Setting of each post
 
 == Changelog ==
+
+= 4.4.1 =
+* 2026-4-20
+* Fixed PHP warning
+
 
 = 4.4.0 =
 * 2026-3-30

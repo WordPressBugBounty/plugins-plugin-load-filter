@@ -2,7 +2,7 @@
 /*
   Plugin Name: plugin load filter
   Description: Dynamically activate the selected plugins for each page. Response will be faster by filtering plugins.
-  Version: 4.4.0
+  Version: 4.4.1
   Plugin URI: https://celtislab.net/en/wp-plugin-load-filter
   Author: enomoto@celtislab
   Author URI: https://celtislab.net/
